@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TagMatch: catch grocery overcharges</title>
+<meta name="description" content="Snap the shelf tag, snap the receipt. TagMatch shows anything that rang up higher than the tag and what to say at customer service.">
+<meta name="theme-color" content="#FFD23F">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta property="og:title" content="TagMatch: catch grocery overcharges">
+<meta property="og:description" content="Snap the shelf tag, snap the receipt, get your money back.">
+<meta property="og:image" content="/icons/icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F7F4; --card:#FFFFFF; --ink:#1C2430; --muted:#5D6672; --line:#DADDD6;
+  --tag:#FFD23F; --tagInk:#1C2430; --over:#C8213A; --ok:#1F7A4D; --warn:#A35B00;
+  --font:"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --paper:#12161C; --card:#1B2129; --ink:#EEF0EC; --muted:#9AA3AD; --line:#2C343E;
+    --over:#FF5A6E; --ok:#4CC38A; --warn:#F0A24A; color-scheme:dark; }
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.45;
+  padding-top:env(safe-area-inset-top,0px)}
+.wrap{max-width:560px;margin:0 auto;padding:16px 16px 110px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:8px 0 6px}
+h1{font-stretch:75%;font-weight:900;font-size:2rem;letter-spacing:-.01em;margin:0}
+h1 .pro{font-size:.8rem;vertical-align:middle;background:var(--tag);color:var(--tagInk);border-radius:5px;padding:2px 6px;margin-left:6px;font-stretch:100%}
+.store{font-size:.9rem;color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.strip{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:0 0 18px}
+.strip div{background:var(--card);padding:9px 12px}
+.strip .k{font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.strip .v{font-stretch:75%;font-weight:800;font-size:1.35rem;font-variant-numeric:tabular-nums}
+h2{font-stretch:85%;font-weight:800;font-size:1.25rem;margin:0 0 4px;text-wrap:balance}
+p.help{color:var(--muted);margin:0 0 14px;font-size:.95rem}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
+  display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav button{flex:1;max-width:140px;background:none;border:0;color:var(--muted);font:600 .9rem var(--font);padding:12px 2px 14px;cursor:pointer;min-height:48px;white-space:nowrap}
+@media (max-width:340px){nav button{font-size:.82rem}}
+nav button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 3px 0 var(--ink)}
+nav .n{display:inline-block;min-width:1.4em;font-stretch:75%;font-weight:800}
+section{display:none} section.on{display:block}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.btn{font:700 .95rem var(--font);border-radius:10px;padding:11px 14px;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;min-height:44px;text-decoration:none;display:inline-flex;align-items:center}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.tag{background:var(--tag);color:var(--tagInk);border-color:var(--tagInk)}
+.btn.sm{padding:7px 11px;min-height:36px;font-size:.88rem}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,nav button:focus-visible,input:focus-visible,select:focus-visible,.row:focus-visible{outline:3px solid var(--tag);outline-offset:2px}
+label.file{position:relative;overflow:hidden}
+label.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.status{font-size:.9rem;color:var(--muted);min-height:1.3em;margin:-4px 0 10px}
+.status.err{color:var(--over)}
+ul.items{list-style:none;padding:0;margin:0;border-top:1px solid var(--line)}
+ul.items li{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;background:var(--line);display:block}
+.nothumb{width:0}
+.row{cursor:pointer;min-width:0}
+.nm{font-weight:600;overflow-wrap:anywhere}
+.sub{font-size:.82rem;color:var(--muted)}
+.pr{font-stretch:75%;font-weight:800;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.x{background:none;border:0;color:var(--muted);font-size:1.3rem;cursor:pointer;padding:4px 8px;min-width:40px;min-height:40px}
+.empty{padding:22px 0;color:var(--muted);border-top:1px solid var(--line)}
+form.add{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+form.add .wide{grid-column:1/-1}
+form.add .formhead{grid-column:1/-1;font-weight:700;font-size:.9rem}
+input,select{font:500 1rem var(--font);color:var(--ink);background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px;width:100%;min-width:0}
+.shelftag{background:var(--tag);color:var(--tagInk);border-radius:6px;padding:16px 18px 18px;margin:6px 0 18px;position:relative;
+  clip-path:polygon(0 0,100% 0,100% 100%,14px 100%,0 calc(100% - 14px))}
+.shelftag .big{font-stretch:62%;font-weight:900;font-size:4.2rem;line-height:.9;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.shelftag .cap{font-weight:700;font-size:.95rem;margin-top:6px}
+.shelftag.clean{background:var(--card);color:var(--ink);border:2px solid var(--ok)}
+.res li{grid-template-columns:1fr auto !important;align-items:start}
+.res select{margin-top:8px;font-size:.88rem;padding:7px 8px}
+.linkbtn{background:none;border:0;padding:6px 0 0;font:600 .85rem var(--font);color:var(--muted);text-decoration:underline;cursor:pointer;min-height:32px}
+.pr.diff{color:var(--over)}
+.badge{font:800 .72rem var(--font);border-radius:5px;padding:3px 7px;white-space:nowrap;margin-bottom:5px;display:inline-block}
+.b-over{background:var(--over);color:#fff}
+.b-ok{background:var(--ok);color:#fff}
+.b-warn{background:var(--warn);color:#fff}
+.b-miss{background:var(--line);color:var(--ink)}
+.script{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;white-space:pre-wrap;font-size:.95rem;margin:10px 0}
+.evid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin:10px 0}
+.evid figure{margin:0}
+.evid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;max-width:100%}
+.evid figcaption{font-size:.75rem;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
+.claim,.card{border:1.5px solid var(--line);border-radius:10px;padding:14px;margin-top:20px;background:var(--card)}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.seg button{font:700 .88rem var(--font);border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:40px}
+.seg button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.partial{display:flex;gap:8px;align-items:center;margin-top:4px}
+.partial input{max-width:140px}
+.note{font-size:.85rem;color:var(--muted);margin-top:16px}
+.hist li{grid-template-columns:1fr auto !important;cursor:pointer}
+.toggle{display:flex;gap:8px;align-items:center;font-size:.92rem;margin:10px 0}
+.toggle input{width:auto}
+.intro{background:var(--card);border:1.5px solid var(--ink);border-radius:10px;padding:14px 16px;margin:0 0 18px}
+.intro ol{margin:8px 0 12px;padding-left:20px;display:grid;gap:4px}
+.upsell{background:var(--tag);color:var(--tagInk);border-radius:10px;padding:14px 16px;margin:0 0 16px}
+.upsell h3{margin:0 0 4px;font-stretch:85%;font-weight:800;font-size:1.1rem}
+.upsell p{margin:0 0 10px;font-size:.92rem}
+.upsell .btn{background:var(--tagInk);color:var(--tag);border-color:var(--tagInk)}
+.upsell .btn.ghost{background:transparent;color:var(--tagInk)}
+.foot{font-size:.8rem;color:var(--muted);margin-top:28px;text-align:center}
+.foot a{color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){ .shelftag{animation:pop .35s ease-out} @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>TagMatch<span class="pro" id="proBadge" hidden>PRO</span></h1>
+    <span class="store" id="tripLabel"></span>
+  </header>
+  <div class="strip" aria-label="Totals">
+    <div><div class="k">This trip's tags</div><div class="v" id="cartTotal">$0.00</div></div>
+    <div><div class="k">Money recovered</div><div class="v" id="lifeTotal">$0.00</div></div>
+  </div>
+
+  <div class="status" id="topStatus" role="status"></div>
+
+  <div class="intro" id="intro" hidden>
+    <h2>How TagMatch works</h2>
+    <ol>
+      <li>While you shop, snap the shelf tag for any item whose price you're counting on.</li>
+      <li>After checkout, photograph the receipt.</li>
+      <li>Tap Check. TagMatch shows anything that rang up higher than the tag, plus what to say at customer service.</li>
+    </ol>
+    <p class="sub" style="margin:0 0 12px">Tip: keep TagMatch one tap away. On iPhone, tap Share, then Add to Home Screen. On Android, tap the ⋮ menu, then Install app.</p>
+    <button class="btn sm" id="introDone">Got it</button>
+  </div>
+
+  <div class="upsell" id="upsell" hidden>
+    <h3>Let TagMatch read the photos for you</h3>
+    <p id="upsellText">Typing prices is free forever. TagMatch Pro reads shelf tags and long receipts from a photo in seconds and matches them for you.</p>
+    <div class="actions" style="margin:0">
+      <button class="btn" id="buyBtn">Try Pro free</button>
+      <button class="btn ghost" id="haveCodeBtn">I have a Pro code</button>
+      <button class="btn ghost" id="upsellClose">Not now</button>
+    </div>
+  </div>
+
+  <section id="s-tags" class="on" aria-labelledby="h-tags">
+    <h2 id="h-tags">Shelf tags</h2>
+    <p class="help">Snap the tag for any item whose price you're counting on, especially sale and coupon prices. Tap a tag to fix it.</p>
+    <div class="actions">
+      <label class="btn file" id="tagPhotoBtn">Photograph a tag<input type="file" accept="image/*" capture="environment" id="tagPhoto"></label>
+      <button class="btn ghost" id="tagManualBtn">Type it in</button>
+    </div>
+    <div class="status" id="tagStatus" role="status"></div>
+    <form class="add" id="tagForm" hidden>
+      <div class="formhead" id="tagFormHead">New tag</div>
+      <input class="wide" id="tf-name" name="name" placeholder="Item (e.g. Cheerios 18 oz)" required>
+      <input id="tf-price" name="price" inputmode="decimal" placeholder="Shelf price" required>
+      <input id="tf-ends" name="ends" type="date" aria-label="Sale ends (optional)" title="Sale ends (optional)">
+      <select class="wide" id="tf-kind" name="kind" aria-label="Price type">
+        <option value="regular">Regular price</option>
+        <option value="sale">Sale price</option>
+        <option value="loyalty">Loyalty / member price</option>
+        <option value="coupon">Digital coupon price</option>
+      </select>
+      <button class="btn wide" type="submit" id="tagSubmit">Add tag</button>
+    </form>
+    <ul class="items" id="tagList"></ul>
+  </section>
+
+  <section id="s-receipt" aria-labelledby="h-rec">
+    <h2 id="h-rec">Receipt</h2>
+    <p class="help">After checkout, photograph the receipt before you leave the lot. Long receipt? Take it in parts, with a little overlap.</p>
+    <div class="actions">
+      <label class="btn file" id="recPhotoBtn">Photograph receipt<input type="file" accept="image/*" capture="environment" id="recPhoto"></label>
+      <button class="btn ghost" id="recManualBtn">Type a line</button>
+    </div>
+    <div class="status" id="recStatus" role="status"></div>
+    <form class="add" id="recForm" hidden>
+      <input class="wide" id="rf-name" name="name" placeholder="Line as printed (e.g. GM CHEERIOS)" required>
+      <input class="wide" id="rf-price" name="price" inputmode="decimal" placeholder="Amount charged" required>
+      <button class="btn wide" type="submit">Add line</button>
+    </form>
+    <ul class="items" id="recList"></ul>
+  </section>
+
+  <section id="s-check" aria-labelledby="h-chk">
+    <h2 id="h-chk">Check</h2>
+    <p class="help">Match every tag to the receipt and see any price differences. If a pairing looks wrong, tap Change match.</p>
+    <div class="actions">
+      <button class="btn" id="runCheck">Check my receipt</button>
+      <button class="btn ghost" id="newTrip">Start a new trip</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="miBonus"> I shopped in Michigan (adds the scanner-law bonus)</label>
+    <div class="status" id="chkStatus" role="status"></div>
+    <div id="results"></div>
+  </section>
+
+  <section id="s-hist" aria-labelledby="h-hist">
+    <h2 id="h-hist">Past trips</h2>
+    <p class="help" id="histSum">Saved on this device only.</p>
+    <ul class="items hist" id="histList"></ul>
+
+    <div class="card" id="acct">
+      <h2>TagMatch Pro</h2>
+      <p class="sub" id="acctText">Pro reads tag and receipt photos for you.</p>
+      <div class="actions" style="margin:10px 0 0">
+        <button class="btn tag" id="acctBuy">Try Pro free</button>
+        <button class="btn ghost sm" id="acctManage" hidden>Manage subscription</button>
+        <button class="btn ghost sm" id="acctCopy" hidden>Copy my Pro code</button>
+        <button class="btn ghost sm" id="acctEnter">Enter a Pro code</button>
+      </div>
+      <form id="codeForm" hidden style="margin-top:10px;display:grid;gap:8px">
+        <input id="codeInput" placeholder="Paste your Pro code" autocomplete="off" aria-label="Pro code">
+        <button class="btn sm" type="submit">Use this code</button>
+      </form>
+      <div class="status" id="acctStatus" role="status" style="margin-top:8px"></div>
+    </div>
+    <p class="foot"><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:support@tagmatch.app" id="supportLink">Support</a></p>
+  </section>
+</div>
+
+<nav role="tablist">
+  <button role="tab" aria-selected="true" data-s="s-tags">Tags <span class="n" id="nTags"></span></button>
+  <button role="tab" aria-selected="false" data-s="s-receipt">Receipt <span class="n" id="nRec"></span></button>
+  <button role="tab" aria-selected="false" data-s="s-check">Check</button>
+  <button role="tab" aria-selected="false" data-s="s-hist">More</button>
+</nav>
+
+<script>
+/* ===== Settings you can change ===== */
+const CONFIG = {
+  price: "$2.99/month",      // shown on buttons; set the real price in Stripe
+  trialDays: 7,              // keep in sync with TRIAL_DAYS on the server
+  hideBuyInAndroidApp: true, // Play Store version: no buy button, only "enter Pro code"
+  supportEmail: "REPLACE_WITH_YOUR_EMAIL", // e.g. tagmatch.help@gmail.com
+};
+
+const $ = s => document.querySelector(s);
+const money = n => (n<0?"-$":"$") + Math.abs(Math.round(n*100)/100).toFixed(2);
+const num = v => { const n = parseFloat(String(v).replace(/[^0-9.\-]/g,"")); return isFinite(n) ? n : NaN; };
+const today = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+const KEY_TRIP="tm-trip", KEY_HIST="tm-history", KEY_INTRO="tm-intro-seen", KEY_TOKEN="tm-pro-token", KEY_APP="tm-in-app";
+
+function load(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+const newTrip = () => ({ id: Date.now(), date: today(), store: "", tags: [], receipt: [], result: null, mi:false, claim:null });
+
+let trip = Object.assign(newTrip(), load(KEY_TRIP, {}) || {});
+let editing = -1;
+
+/* ---------- Pro / server ---------- */
+if (document.referrer.startsWith("android-app://")) save(KEY_APP, true);
+const inApp = !!load(KEY_APP, false);
+const canBuy = !(inApp && CONFIG.hideBuyInAndroidApp);
+let pro = false, canManage = false;
+const token = () => load(KEY_TOKEN, null);
+
+async function api(path, data){
+  let r;
+  try { r = await fetch("/api/" + path, { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ ...data, token: token() }) }); }
+  catch(e){ throw { code:"offline" }; }
+  let out = null; try { out = await r.json(); } catch(e){}
+  if (!r.ok) throw { code: (out && out.error) || "server_error" };
+  return out;
+}
+/* AI answers stream back as text; collect it and pull out the JSON */
+function parseLoose(text){
+  const t = String(text).replace(/```(?:json)?/g,"").trim(); const i = t.search(/[\[{]/);
+  if (i<0) throw {code:"invalid_json"};
+  const close = t[i]==="[" ? "]" : "}"; try { return JSON.parse(t.slice(i, t.lastIndexOf(close)+1)); } catch(e){ throw {code:"invalid_json"}; }
+}
+async function apiAI(path, data){
+  let r;
+  try { r = await fetch("/api/" + path, { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ ...data, token: token() }) }); }
+  catch(e){ throw { code:"offline" }; }
+  if ((r.headers.get("content-type")||"").includes("application/json")){
+    let out=null; try{ out = await r.json(); }catch(e){}
+    if (!r.ok) throw { code: (out && out.error) || "server_error" };
+    return out;
+  }
+  const text = await r.text();
+  if (text.includes("<<STREAM_ERROR>>")) throw { code:"server_error" };
+  return parseLoose(text);
+}
+function renderPro(){
+  $("#proBadge").hidden = !pro;
+  const buyLabel = CONFIG.trialDays ? `Try Pro free for ${CONFIG.trialDays} days` : `Get Pro, ${CONFIG.price}`;
+  $("#buyBtn").textContent = buyLabel; $("#acctBuy").textContent = buyLabel;
+  $("#buyBtn").hidden = !canBuy; $("#acctBuy").hidden = pro || !canBuy;
+  $("#acctManage").hidden = !(pro && canManage && canBuy);
+  $("#acctCopy").hidden = !token();
+  $("#acctText").textContent = pro ? "Pro is on. Photo reading and smart matching are unlocked on this device."
+    : canBuy ? `Pro reads tag and receipt photos for you. ${CONFIG.trialDays ? CONFIG.trialDays + " days free, then " : ""}${CONFIG.price}. Cancel anytime.`
+    : "Pro reads tag and receipt photos for you. Already a subscriber? Enter your Pro code.";
+  $("#upsellText").textContent = canBuy
+    ? `Typing prices is free forever. Pro reads shelf tags and long receipts from a photo in seconds and matches them for you. ${CONFIG.trialDays ? CONFIG.trialDays + " days free, then " : ""}${CONFIG.price}.`
+    : "Typing prices is free forever. Photo reading is part of TagMatch Pro. Already a subscriber? Enter your Pro code.";
+}
+async function refreshPro(){
+  try { const s = await api("status", {}); pro = !!s.pro; canManage = !!s.canManage; }
+  catch(e){ /* offline: keep last known */ pro = !!token() && pro; }
+  renderPro();
+}
+function showUpsell(){ $("#upsell").hidden = false; $("#upsell").scrollIntoView({block:"nearest"}); }
+$("#upsellClose").onclick = () => $("#upsell").hidden = true;
+async function startCheckout(btn){
+  btn.disabled = true; $("#topStatus").className="status"; $("#topStatus").textContent = "Opening secure checkout…";
+  try { const { url } = await api("checkout", {}); location.href = url; }
+  catch(e){ btn.disabled=false; $("#topStatus").className="status err"; $("#topStatus").textContent = "Checkout isn't available right now. Please try again in a bit."; }
+}
+$("#buyBtn").onclick = e => startCheckout(e.currentTarget);
+$("#acctBuy").onclick = e => startCheckout(e.currentTarget);
+$("#haveCodeBtn").onclick = () => { $("#upsell").hidden = true; show("s-hist"); $("#codeForm").hidden=false; $("#codeInput").focus(); };
+$("#acctEnter").onclick = () => { $("#codeForm").hidden = !$("#codeForm").hidden; if(!$("#codeForm").hidden) $("#codeInput").focus(); };
+$("#codeForm").onsubmit = async e => {
+  e.preventDefault(); const v = $("#codeInput").value.trim(); if (!v) return;
+  const old = token(); save(KEY_TOKEN, v); await refreshPro();
+  if (pro){ $("#acctStatus").className="status"; $("#acctStatus").textContent="Pro is on. Enjoy!"; $("#codeForm").hidden=true; $("#codeInput").value=""; }
+  else { if (old) save(KEY_TOKEN, old); else localStorage.removeItem(KEY_TOKEN); renderPro(); $("#acctStatus").className="status err"; $("#acctStatus").textContent="That code isn't active. Check it was copied in full."; }
+};
+$("#acctCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(token()); $("#acctStatus").className="status"; $("#acctStatus").textContent="Copied. Paste it into TagMatch on your other phone (More → Enter a Pro code). Keep it private."; }
+  catch(e){ $("#acctStatus").textContent = token(); }
+};
+$("#acctManage").onclick = async () => {
+  try { const { url } = await api("portal", {}); location.href = url; }
+  catch(e){ $("#acctStatus").className="status err"; $("#acctStatus").textContent="Couldn't open the subscription page. Try again in a bit."; }
+};
+async function handleReturn(){
+  const q = new URLSearchParams(location.search);
+  const sid = q.get("session_id");
+  if (q.get("checkout")==="cancelled"){ $("#topStatus").textContent = "Checkout cancelled. You can keep using TagMatch for free."; }
+  if (sid){
+    $("#topStatus").textContent = "Finishing your upgrade…";
+    try { const { token: t } = await api("activate", { session_id: sid }); save(KEY_TOKEN, t); $("#topStatus").textContent = "Welcome to TagMatch Pro! Photo reading is on."; }
+    catch(e){ $("#topStatus").className="status err"; $("#topStatus").textContent = "We couldn't confirm the payment yet. Refresh in a minute, or email support."; }
+  }
+  if (sid || q.get("checkout")) history.replaceState(null, "", location.pathname);
+}
+
+/* ---------- money math ---------- */
+function owedOf(t){
+  if (!t.result) return {owed:0,bonus:0,count:0};
+  const over = t.result.filter(r => r.status==="over");
+  const owed = over.reduce((a,r)=>a+r.diff,0);
+  const bonus = t.mi ? over.reduce((a,r)=>a+Math.min(5,Math.max(1,Math.round(r.diff*10*100)/100)),0) : 0;
+  return {owed, bonus, count:over.length};
+}
+function recoveredOf(t){
+  const c = t.claim; if (!c) return 0;
+  if (c.status==="refunded"){ const o=owedOf(t); return o.owed+o.bonus; }
+  if (c.status==="partial") return num(c.amount)||0;
+  return 0;
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => show(b.dataset.s));
+function show(id){
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === id));
+  document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b.dataset.s === id));
+  if (id === "s-hist") renderHist();
+  window.scrollTo(0,0);
+}
+
+/* ---------- render ---------- */
+function li(main, sub, price, onDel, opts={}){
+  const el = document.createElement("li");
+  if (opts.photo){ const im=document.createElement("img"); im.className="thumb"; im.src=opts.photo; im.alt=""; el.append(im); }
+  else { const sp=document.createElement("span"); sp.className="nothumb"; el.append(sp); }
+  const a = document.createElement("div"); a.className="row";
+  const n = document.createElement("div"); n.className="nm"; n.textContent = main; a.append(n);
+  if (sub){ const s=document.createElement("div"); s.className="sub"; s.textContent=sub; a.append(s); }
+  if (opts.onEdit){ a.tabIndex=0; a.setAttribute("role","button"); a.setAttribute("aria-label","Edit "+main); a.onclick=opts.onEdit; a.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();opts.onEdit();} }; }
+  const p = document.createElement("div"); p.className="pr"; p.textContent = price;
+  const x = document.createElement("button"); x.className="x"; x.setAttribute("aria-label","Remove "+main); x.textContent="×"; x.onclick=onDel;
+  el.append(a,p,x); return el;
+}
+const kindLabel = {regular:"Regular", sale:"Sale", loyalty:"Member price", coupon:"Digital coupon"};
+const fmtDate = d => { try{ return new Date(d+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}); }catch(e){ return d; } };
+function render(){
+  $("#tripLabel").textContent = (trip.store ? trip.store + ", " : "") + fmtDate(trip.date);
+  const tl = $("#tagList"); tl.replaceChildren();
+  if (!trip.tags.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="No tags yet. Add the first one while you shop."; tl.append(e); }
+  trip.tags.forEach((t,i) => {
+    const sub = [kindLabel[t.kind]||"Regular", t.ends ? (t.ends < trip.date ? "sale ended " : "ends ") + fmtDate(t.ends) : "", t.check ? "check this read" : ""].filter(Boolean).join(", ");
+    tl.append(li(t.name, sub, money(t.price), () => removeTag(i), { photo:t.photo, onEdit:() => startEdit(i) }));
+  });
+  const rl = $("#recList"); rl.replaceChildren();
+  if (!trip.receipt.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="No receipt yet. Photograph it after checkout."; rl.append(e); }
+  trip.receipt.forEach((r,i) => rl.append(li(r.name, r.qty>1 ? "Qty "+r.qty : "", money(r.price), () => { trip.receipt.splice(i,1); trip.result=null; persist(); })));
+  $("#nTags").textContent = trip.tags.length || "";
+  $("#nRec").textContent = trip.receipt.length || "";
+  $("#cartTotal").textContent = money(trip.tags.reduce((a,t)=>a+(t.price||0),0));
+  const life = load(KEY_HIST, []).reduce((a,h)=>a+recoveredOf(h),0) + recoveredOf(trip);
+  $("#lifeTotal").textContent = money(life);
+  $("#miBonus").checked = !!trip.mi;
+  renderResults();
+}
+function persist(){
+  if (!save(KEY_TRIP, trip)){
+    trip.tags.forEach(t => delete t.photo);
+    save(KEY_TRIP, trip);
+    $("#tagStatus").textContent = "Your phone ran out of space for photos, so tag photos were removed. Prices are kept.";
+  }
+  render();
+}
+function removeTag(i){ trip.tags.splice(i,1); trip.result=null; if (editing===i) cancelEdit(); persist(); }
+
+/* ---------- manual entry and editing ---------- */
+function startEdit(i){
+  const t = trip.tags[i]; editing = i; const f = $("#tagForm"); f.hidden = false;
+  $("#tf-name").value=t.name; $("#tf-price").value=t.price.toFixed(2); $("#tf-ends").value=t.ends||""; $("#tf-kind").value=t.kind||"regular";
+  $("#tagFormHead").textContent="Edit tag"; $("#tagSubmit").textContent="Save changes";
+  $("#tf-price").focus(); f.scrollIntoView({block:"nearest"});
+}
+function cancelEdit(){ editing=-1; $("#tagForm").reset(); $("#tagFormHead").textContent="New tag"; $("#tagSubmit").textContent="Add tag"; }
+$("#tagManualBtn").onclick = () => { if (editing>=0){ cancelEdit(); $("#tagForm").hidden=false; } else $("#tagForm").hidden = !$("#tagForm").hidden; if(!$("#tagForm").hidden) $("#tf-name").focus(); };
+$("#recManualBtn").onclick = () => { $("#recForm").hidden = !$("#recForm").hidden; if(!$("#recForm").hidden) $("#rf-name").focus(); };
+$("#tagForm").onsubmit = e => {
+  e.preventDefault(); const price = num($("#tf-price").value);
+  if (isNaN(price)) { $("#tagStatus").className="status err"; $("#tagStatus").textContent = "Enter the price as a number, like 3.49."; return; }
+  const data = { name:$("#tf-name").value.trim(), price, ends:$("#tf-ends").value||null, kind:$("#tf-kind").value };
+  if (editing>=0){ Object.assign(trip.tags[editing], data); delete trip.tags[editing].check; $("#tagStatus").textContent="Saved."; $("#tagForm").hidden=true; }
+  else { trip.tags.push(data); $("#tagStatus").textContent=""; }
+  $("#tagStatus").className="status"; cancelEdit(); trip.result=null; persist();
+  if (data.ends && data.ends < trip.date) $("#tagStatus").textContent = "Heads up: this sale tag already ended. Many stores don't have to honor an expired tag, so ask before you buy.";
+};
+$("#recForm").onsubmit = e => {
+  e.preventDefault(); const price = num($("#rf-price").value);
+  if (isNaN(price)) { $("#recStatus").className="status err"; $("#recStatus").textContent = "Enter the amount as a number, like 3.49."; return; }
+  trip.receipt.push({ name:$("#rf-name").value.trim(), price, qty:1 });
+  trip.result=null; e.target.reset(); $("#recStatus").textContent=""; persist();
+};
+
+/* ---------- photos ---------- */
+async function shrink(file, max, q){
+  try{
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((ok,bad)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=bad; i.src=url; });
+    const s = Math.min(1, max/Math.max(img.width,img.height));
+    const c = document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+    return c.toDataURL("image/jpeg",q);
+  }catch(e){ return null; }
+}
+function errCopy(e){
+  switch(e && e.code){
+    case "pro_required": return "Photo reading is part of TagMatch Pro.";
+    case "offline": return "You're offline. Type the details in, or try again with signal.";
+    case "rate_limited": return "Too many requests just now. Wait a minute, then try again.";
+    case "image_rejected": case "image_too_large": return "That photo couldn't be read. Try a sharper, closer shot.";
+    case "invalid_json": return "The photo was read but the result was unclear. Try again or type it in.";
+    default: return "Something went wrong reading the photo. Try again or type it in.";
+  }
+}
+async function readPhoto(file, kind, statusEl){
+  if (!pro){ showUpsell(); return null; }
+  statusEl.className="status"; statusEl.textContent = "Reading the photo…";
+  const image = await shrink(file, 1600, 0.8);
+  if (!image){ statusEl.className="status err"; statusEl.textContent="That photo couldn't be opened. Try again."; return null; }
+  try{
+    const out = await apiAI("read", { kind, image });
+    if (!out || out.error) { statusEl.className="status err"; statusEl.textContent = kind==="tag" ? "That doesn't look like a price tag. Try again or type it in." : "That doesn't look like a receipt. Try again."; return null; }
+    statusEl.textContent = ""; return out;
+  }catch(e){
+    statusEl.className="status err"; statusEl.textContent = errCopy(e);
+    if (e.code==="pro_required"){ pro=false; renderPro(); showUpsell(); }
+    return null;
+  }
+}
+$("#tagPhoto").onchange = async e => {
+  const f = e.target.files[0]; e.target.value=""; if(!f) return;
+  const [t, photo] = await Promise.all([readPhoto(f, "tag", $("#tagStatus")), shrink(f, 360, 0.6)]);
+  if(!t) return;
+  const price = num(t.price);
+  if (isNaN(price)) { $("#tagStatus").className="status err"; $("#tagStatus").textContent="Couldn't find a price on that tag. Type it in instead."; return; }
+  const tag = { name:String(t.name||"Item"), price, ends:t.ends||null, kind:["regular","sale","loyalty","coupon"].includes(t.kind)?t.kind:"regular" };
+  if (photo) tag.photo = photo;
+  if (t.confident === false) tag.check = true;
+  trip.tags.push(tag);
+  if (!trip.store && t.store) trip.store = String(t.store);
+  trip.result=null;
+  $("#tagStatus").textContent = (tag.ends && tag.ends < trip.date) ? "Heads up: this sale tag already ended. Many stores don't have to honor an expired tag, so ask before you buy." : t.confident === false ? "Added, but part of the tag was hard to read. Tap it to check the price." : "Added. Check the name and price look right.";
+  persist();
+};
+function mergeLines(existing, incoming){
+  const key = r => r.name.toLowerCase().replace(/\s+/g," ").trim()+"|"+r.price.toFixed(2);
+  let k = Math.min(existing.length, incoming.length);
+  for (; k>0; k--){
+    let same = true;
+    for (let j=0;j<k;j++){ if (key(existing[existing.length-k+j]) !== key(incoming[j])) { same=false; break; } }
+    if (same) break;
+  }
+  return { added: incoming.slice(k), skipped: k };
+}
+$("#recPhoto").onchange = async e => {
+  const f = e.target.files[0]; e.target.value=""; if(!f) return;
+  const r = await readPhoto(f, "receipt", $("#recStatus")); if(!r) return;
+  const items = (Array.isArray(r.items)?r.items:[]).map(i => ({ name:String(i.name||""), price:num(i.price), qty:Math.max(1, parseInt(i.qty)||1) })).filter(i => i.name && !isNaN(i.price));
+  if (!items.length){ $("#recStatus").className="status err"; $("#recStatus").textContent="No item lines found. Try a flatter, closer photo."; return; }
+  const m = mergeLines(trip.receipt, items);
+  trip.receipt.push(...m.added);
+  if (r.store) trip.store = String(r.store);
+  trip.result=null;
+  $("#recStatus").textContent = `Read ${m.added.length} new line${m.added.length===1?"":"s"}` + (m.skipped ? ` (skipped ${m.skipped} that overlapped the last photo)` : "") + ". Long receipt? Photograph the next part.";
+  persist();
+};
+
+/* ---------- matching ---------- */
+const UNITS = new Set(["oz","fl","lb","lbs","ct","pk","pack","ml","l","g","kg","gal","qt","pt","ea","each","count","the","and","of","with"]);
+const words = s => String(s).toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/)
+  .filter(w => w.length>1 && !UNITS.has(w) && !/^\d+(oz|z|ct|pk|lb|g|ml)?$/.test(w));
+function localMatch(){
+  const used = new Set();
+  return trip.tags.map((t,ti) => {
+    let best=-1, score=0; const tw = words(t.name);
+    trip.receipt.forEach((r,ri) => {
+      if (used.has(ri)) return; const rw = words(r.name);
+      let s = tw.filter(w => rw.some(x => x.startsWith(w.slice(0,4)) || w.startsWith(x.slice(0,4)))).length / Math.max(1, tw.length);
+      const unit = r.price/(r.qty||1); if (Math.abs(unit - t.price) < 1.5) s += .1;
+      if (s > score){ score=s; best=ri; }
+    });
+    if (score < .34) best = -1; if (best>=0) used.add(best);
+    return { tag: ti, line: best };
+  });
+}
+async function smartMatch(){
+  const out = await apiAI("match", { tags: trip.tags.map(t=>({name:t.name, price:t.price})), receipt: trip.receipt.map(r=>({name:r.name, price:r.price, qty:r.qty})) });
+  if (!Array.isArray(out)) throw {code:"invalid_json"};
+  return trip.tags.map((t,i) => { const m = out.find(o => o && Number(o.tag)===i); const l = m && m.line!=null ? Number(m.line) : -1; return { tag:i, line: (l>=0 && l<trip.receipt.length) ? l : -1 }; });
+}
+function judge(p){
+  const t = trip.tags[p.tag]; const r = p.line>=0 ? trip.receipt[p.line] : null;
+  if (!r) return { ...p, status:"miss", diff:0 };
+  const unit = r.price / (r.qty||1); const diff = Math.round((unit - t.price) * (r.qty||1) * 100)/100;
+  const expired = t.ends && t.ends < trip.date;
+  if (diff > 0.005) return { ...p, status: expired ? "expired" : "over", diff };
+  return { ...p, status:"ok", diff:0 };
+}
+$("#runCheck").onclick = async () => {
+  const st = $("#chkStatus"); st.className="status";
+  if (!trip.tags.length || !trip.receipt.length){ st.textContent = "Add at least one tag and your receipt first."; return; }
+  $("#runCheck").disabled = true; let pairs;
+  if (pro){
+    st.textContent = "Matching tags to receipt lines…";
+    try { pairs = await smartMatch(); st.textContent=""; }
+    catch(e){ pairs = localMatch(); st.textContent = "Matched on this device instead. Review the pairs below."; }
+  } else { pairs = localMatch(); st.textContent = "Review the pairs below. Pro matches abbreviated receipt names for you."; }
+  trip.result = pairs.map(judge);
+  $("#runCheck").disabled = false; persist();
+};
+$("#miBonus").onchange = e => { trip.mi = e.target.checked; persist(); };
+
+function rePair(tagIdx, lineIdx){
+  if (lineIdx >= 0) trip.result.forEach(r => { if (r.line===lineIdx && r.tag!==tagIdx) Object.assign(r, judge({tag:r.tag, line:-1})); });
+  const r = trip.result.find(x => x.tag===tagIdx); Object.assign(r, judge({tag:tagIdx, line:lineIdx}));
+  persist();
+}
+
+function renderResults(){
+  const box = $("#results"); box.replaceChildren(); if (!trip.result) return;
+  const res = trip.result.filter(r => trip.tags[r.tag]);
+  const over = res.filter(r => r.status==="over"), exp = res.filter(r => r.status==="expired"), miss = res.filter(r => r.status==="miss");
+  const {owed, bonus} = owedOf(trip);
+  const tag = document.createElement("div"); tag.className = "shelftag" + (owed+bonus>0 ? "" : " clean");
+  const big = document.createElement("div"); big.className="big"; big.textContent = money(owed+bonus);
+  const cap = document.createElement("div"); cap.className="cap";
+  cap.textContent = owed>0 ? `over the shelf price on ${over.length} item${over.length>1?"s":""}` + (bonus ? ` (includes ${money(bonus)} possible Michigan bonus)` : "")
+    : exp.length ? "No clear overcharges, but some sale tags had expired" : "Everything rang up at the shelf price";
+  tag.append(big,cap); box.append(tag);
+
+  const ul = document.createElement("ul"); ul.className="items res";
+  res.forEach(r => {
+    const t = trip.tags[r.tag]; const l = r.line>=0 ? trip.receipt[r.line] : null;
+    const el = document.createElement("li");
+    const b = document.createElement("span"); b.className = "badge " + ({over:"b-over",ok:"b-ok",expired:"b-warn",miss:"b-miss"})[r.status];
+    b.textContent = ({over:"Overcharged",ok:"Matches",expired:"Expired tag",miss:"Not found"})[r.status];
+    const mid = document.createElement("div"); mid.style.minWidth="0";
+    const n=document.createElement("div"); n.className="nm"; n.textContent=t.name;
+    const bw=document.createElement("div"); bw.append(b);
+    const s=document.createElement("div"); s.className="sub";
+    s.textContent = l ? `Tag ${money(t.price)}, charged ${money(l.price/(l.qty||1))}${l.qty>1?" each":""} as "${l.name}"` : `Tag ${money(t.price)}. No matching receipt line.`;
+    const sel = document.createElement("select"); sel.id = "pair-"+r.tag; sel.setAttribute("aria-label","Receipt line for "+t.name);
+    const o0 = document.createElement("option"); o0.value="-1"; o0.textContent="Not on the receipt"; sel.append(o0);
+    trip.receipt.forEach((rl,i) => { const o=document.createElement("option"); o.value=String(i); o.textContent=`${rl.name} · ${money(rl.price)}`; sel.append(o); });
+    sel.value = String(r.line); sel.onchange = () => rePair(r.tag, Number(sel.value));
+    const open = r.status==="miss";
+    sel.hidden = !open;
+    const ch=document.createElement("button"); ch.className="linkbtn"; ch.textContent="Change match"; ch.hidden = open;
+    ch.onclick = () => { sel.hidden=false; ch.hidden=true; sel.focus(); };
+    mid.append(bw,n,s,ch,sel);
+    const p=document.createElement("div"); p.className="pr diff"; p.textContent = r.diff>0 ? "+"+money(r.diff) : "";
+    el.append(mid,p); ul.append(el);
+  });
+  box.append(ul);
+
+  const flagged = over.concat(exp);
+  if (flagged.length){
+    const lines = flagged.map(r => { const t=trip.tags[r.tag]; const l=trip.receipt[r.line]; return `• ${t.name}: shelf tag ${money(t.price)}, rang up ${money(l.price/(l.qty||1))}`; }).join("\n");
+    const text = `Hi, I was charged more than the shelf price on ${flagged.length} item${flagged.length>1?"s":""} today:\n${lines}\n\nI have photos of the tags and my receipt. Could you refund the difference${trip.mi?", plus the bonus required under Michigan's Scanner Law":""}? Thank you.`;
+    const h = document.createElement("h2"); h.textContent="What to say at customer service"; h.style.marginTop="22px";
+    const hp = document.createElement("p"); hp.className="help"; hp.textContent="Show this with your receipt. Each store decides how to handle price errors.";
+    const sc = document.createElement("div"); sc.className="script"; sc.textContent=text;
+    const cp = document.createElement("button"); cp.className="btn ghost sm"; cp.textContent="Copy message";
+    cp.onclick = async () => { try{ await navigator.clipboard.writeText(text); cp.textContent="Copied"; }catch(e){ const rg=document.createRange(); rg.selectNodeContents(sc); const sl=getSelection(); sl.removeAllRanges(); sl.addRange(rg); cp.textContent="Text selected. Copy it from the menu"; } };
+    box.append(h,hp,sc,cp);
+
+    const photos = flagged.map(r => trip.tags[r.tag]).filter(t => t.photo);
+    if (photos.length){
+      const ev = document.createElement("div"); ev.className="evid";
+      photos.forEach(t => { const fg=document.createElement("figure"); const im=document.createElement("img"); im.src=t.photo; im.alt="Shelf tag photo for "+t.name; const fc=document.createElement("figcaption"); fc.textContent=`${t.name}, ${money(t.price)}`; fg.append(im,fc); ev.append(fg); });
+      const eh = document.createElement("p"); eh.className="sub"; eh.style.marginTop="14px"; eh.textContent="Tag photos to show the clerk:";
+      box.append(eh, ev);
+    }
+
+    if (owed > 0) box.append(claimBox(owed+bonus));
+  }
+  const note = document.createElement("p"); note.className="note";
+  note.textContent = (exp.length ? "Expired tags: many stores still honor a tag that was on the shelf, but rules vary by state. " : "") + (miss.length ? "Not found means the item wasn't spotted on the receipt; check it by eye or pick the line above. " : "") + "If a store won't fix a pricing error, your state's weights and measures office takes complaints. Rules vary by state; this is not legal advice.";
+  box.append(note);
+}
+
+function claimBox(total){
+  const c = trip.claim || {status:"pending"};
+  const wrap = document.createElement("div"); wrap.className="claim";
+  const h = document.createElement("h2"); h.textContent="What did the store do?";
+  const seg = document.createElement("div"); seg.className="seg"; seg.setAttribute("role","group"); seg.setAttribute("aria-label","Refund result");
+  [["pending","Haven't asked yet"],["refunded","Refunded "+money(total)],["partial","Partly refunded"],["denied","Said no"]].forEach(([k,lab]) => {
+    const b=document.createElement("button"); b.textContent=lab; b.setAttribute("aria-pressed", c.status===k);
+    b.onclick = () => { trip.claim = { status:k, amount: k==="partial" ? (c.amount||"") : "" }; persist(); };
+    seg.append(b);
+  });
+  wrap.append(h, seg);
+  if (c.status==="partial"){
+    const row=document.createElement("div"); row.className="partial";
+    const lab=document.createElement("label"); lab.htmlFor="partialAmt"; lab.textContent="Amount refunded"; lab.className="sub";
+    const inp=document.createElement("input"); inp.id="partialAmt"; inp.inputMode="decimal"; inp.placeholder="0.00"; inp.value=c.amount||"";
+    inp.onchange = () => { trip.claim.amount = inp.value; persist(); };
+    row.append(lab, inp); wrap.append(row);
+  }
+  if (c.status==="denied"){
+    const p=document.createElement("p"); p.className="sub"; p.textContent="Keep your receipt and tag photos. You can file a complaint with your state's weights and measures or consumer protection office.";
+    wrap.append(p);
+  }
+  return wrap;
+}
+
+/* ---------- trips ---------- */
+$("#newTrip").onclick = () => {
+  if (trip.tags.length || trip.receipt.length){
+    const hist = load(KEY_HIST, []);
+    const o = owedOf(trip);
+    const slim = { ...trip, owed:o.owed+o.bonus, tags: trip.tags.map(({photo, ...t}) => t) };
+    hist.unshift(slim); save(KEY_HIST, hist.slice(0,50));
+  }
+  trip = newTrip(); cancelEdit();
+  $("#chkStatus").textContent=""; $("#tagStatus").textContent=""; $("#recStatus").textContent="";
+  persist(); show("s-tags");
+};
+const claimLabel = {pending:"Not asked yet", refunded:"Refunded", partial:"Partly refunded", denied:"Store said no"};
+function renderHist(){
+  const ul = $("#histList"); ul.replaceChildren(); const hist = load(KEY_HIST, []);
+  if (!hist.length){ $("#histSum").textContent="Saved on this device only."; const e=document.createElement("div"); e.className="empty"; e.textContent="Finished trips show up here once you start a new one."; ul.append(e); return; }
+  const caught = hist.reduce((a,h)=>a+(h.owed||0),0), got = hist.reduce((a,h)=>a+recoveredOf(h),0);
+  $("#histSum").textContent = `${money(caught)} in overcharges caught and ${money(got)} recovered across ${hist.length} trip${hist.length>1?"s":""}. Saved on this device only.`;
+  hist.forEach((h,i) => {
+    const el=document.createElement("li"); const a=document.createElement("div");
+    const n=document.createElement("div"); n.className="nm"; n.textContent = (h.store||"Trip") + ", " + h.date;
+    const s=document.createElement("div"); s.className="sub"; s.textContent = `${h.tags.length} tags, ${h.receipt.length} receipt lines` + (h.owed ? ` · ${claimLabel[(h.claim||{}).status||"pending"]}` : "");
+    a.append(n,s); const p=document.createElement("div"); p.className="pr"; p.textContent = h.owed ? money(h.owed) : "—";
+    el.append(a,p); el.tabIndex=0; el.title="Reopen this trip";
+    const open = () => {
+      const rest = load(KEY_HIST, []); const [picked] = rest.splice(i,1);
+      if (trip.tags.length || trip.receipt.length){ const o=owedOf(trip); rest.unshift({ ...trip, owed:o.owed+o.bonus, tags: trip.tags.map(({photo, ...t}) => t) }); }
+      save(KEY_HIST, rest); trip = Object.assign(newTrip(), picked); persist(); show("s-check");
+    };
+    el.onclick = open; el.onkeydown = e => { if (e.key==="Enter") open(); };
+    ul.append(el);
+  });
+}
+
+/* ---------- start ---------- */
+$("#intro").hidden = !!load(KEY_INTRO, false);
+$("#introDone").onclick = () => { save(KEY_INTRO, true); $("#intro").hidden = true; };
+$("#supportLink").href = "mailto:" + CONFIG.supportEmail;
+render(); renderPro();
+handleReturn().then(refreshPro);
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
