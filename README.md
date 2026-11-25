@@ -33,3 +33,4 @@ Everything needed to put TagMatch online and charge for Pro.
 3. In Play Console, create the app, upload the `.aab`, add the store-assets graphics, the privacy URL (`/privacy.html`), and start a closed test with 12+ testers for 14 days.
 
 The Android app hides the buy button (`hideBuyInAndroidApp`), so subscribers buy on the website and enter their Pro code in the app. That keeps it clear of Google Play's billing rules. Ask before changing it.
+.
