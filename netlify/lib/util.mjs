@@ -52,7 +52,11 @@ export async function stripe(method, path, params) {
   }
   const r = await fetch(url, opts);
   const data = await r.json();
-  if (!r.ok) throw Object.assign(new Error(data?.error?.message || "Stripe error"), { code: "stripe_error" });
+  if (!r.ok) {
+    const kind = key.startsWith("sk_live_") ? "sk_live_" : key.startsWith("sk_test_") ? "sk_test_" : key.startsWith("rk_") ? "restricted key" : key.startsWith("sk-ant-") ? "ANTHROPIC key (wrong key in STRIPE_SECRET_KEY)" : "unknown format";
+    console.error(`[stripe] ${method} ${path} failed (${r.status}): ${data?.error?.message || "no message"} | key type: ${kind}`);
+    throw Object.assign(new Error(data?.error?.message || "Stripe error"), { code: "stripe_error" });
+  }
   return data;
 }
 
