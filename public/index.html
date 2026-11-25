@@ -40,8 +40,8 @@ h1 .pro{font-size:.8rem;vertical-align:middle;background:var(--tag);color:var(--
 .strip .v{font-stretch:75%;font-weight:800;font-size:1.35rem;font-variant-numeric:tabular-nums}
 h2{font-stretch:85%;font-weight:800;font-size:1.25rem;margin:0 0 4px;text-wrap:balance}
 p.help{color:var(--muted);margin:0 0 14px;font-size:.95rem}
-nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
-  display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);
+  display:flex;justify-content:center;padding:0;z-index:5}
 nav button{flex:1;max-width:140px;background:none;border:0;color:var(--muted);font:600 .9rem var(--font);padding:12px 2px 14px;cursor:pointer;min-height:48px;white-space:nowrap}
 @media (max-width:340px){nav button{font-size:.82rem}}
 nav button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 3px 0 var(--ink)}
@@ -114,6 +114,12 @@ input,select{font:500 1rem var(--font);color:var(--ink);background:var(--card);b
 </style>
 </head>
 <body>
+<nav role="tablist">
+  <button role="tab" aria-selected="true" data-s="s-tags">Tags <span class="n" id="nTags"></span></button>
+  <button role="tab" aria-selected="false" data-s="s-receipt">Receipt <span class="n" id="nRec"></span></button>
+  <button role="tab" aria-selected="false" data-s="s-check">Check</button>
+  <button role="tab" aria-selected="false" data-s="s-hist">More</button>
+</nav>
 <div class="wrap">
   <header>
     <h1>TagMatch<span class="pro" id="proBadge" hidden>PRO</span></h1>
@@ -223,12 +229,6 @@ input,select{font:500 1rem var(--font);color:var(--ink);background:var(--card);b
   </section>
 </div>
 
-<nav role="tablist">
-  <button role="tab" aria-selected="true" data-s="s-tags">Tags <span class="n" id="nTags"></span></button>
-  <button role="tab" aria-selected="false" data-s="s-receipt">Receipt <span class="n" id="nRec"></span></button>
-  <button role="tab" aria-selected="false" data-s="s-check">Check</button>
-  <button role="tab" aria-selected="false" data-s="s-hist">More</button>
-</nav>
 
 <script>
 /* ===== Settings you can change ===== */
